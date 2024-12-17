@@ -11,37 +11,90 @@ function deg2rad(angle) {
 
 
 // Constructor
+// function Model(name) {
+//     this.name = name;
+//     this.iVertexBuffer = gl.createBuffer();
+//     this.count = 0;
+
+//     this.BufferData = function (vertices) {
+
+//         gl.bindBuffer(gl.ARRAY_BUFFER, this.iVertexBuffer);
+//         gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(vertices), gl.STREAM_DRAW);
+
+//         this.count = vertices.length / 3;
+//     }
+
+//     this.Draw = function () {
+
+//         gl.bindBuffer(gl.ARRAY_BUFFER, this.iVertexBuffer);
+//         gl.vertexAttribPointer(shProgram.iAttribVertex, 3, gl.FLOAT, false, 0, 0);
+//         gl.enableVertexAttribArray(shProgram.iAttribVertex);
+
+//         // gl.drawArrays(gl.LINE_STRIP, 0, this.count);
+//         for (let u = 0; u <= uCount; u++) {
+//             gl.drawArrays(gl.LINE_STRIP, u * vCount, vCount);
+//         }
+//         // +1 to draw last line_strip
+//         for (let v = 0; v <= vCount + 1; v++) {
+//             gl.drawArrays(gl.LINE_STRIP,
+//                 uCount * (v + vCount),
+//                 uCount);
+//         }
+//     }
+// }
 function Model(name) {
     this.name = name;
+
+    // Buffers
     this.iVertexBuffer = gl.createBuffer();
+    this.iNormalBuffer = gl.createBuffer();
+    this.iIndexBuffer = gl.createBuffer(); // Index buffer
     this.count = 0;
 
-    this.BufferData = function (vertices) {
-
+    // Method to set vertex data
+    this.BufferData = function (vertices, indices, normals) {
+        // Bind and upload vertex data
         gl.bindBuffer(gl.ARRAY_BUFFER, this.iVertexBuffer);
-        gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(vertices), gl.STREAM_DRAW);
+        gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(vertices), gl.STATIC_DRAW);
 
-        this.count = vertices.length / 3;
-    }
+        gl.bindBuffer(gl.ARRAY_BUFFER, this.iNormalBuffer);
+        gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(normals), gl.STATIC_DRAW);
 
+        // Bind and upload index data
+        gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, this.iIndexBuffer);
+        gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, new Uint16Array(indices), gl.STATIC_DRAW);
+
+        this.count = indices.length; // Total indices for drawing
+    };
+
+    // Method to draw the object
     this.Draw = function () {
-
+        // Bind the vertex buffer
         gl.bindBuffer(gl.ARRAY_BUFFER, this.iVertexBuffer);
         gl.vertexAttribPointer(shProgram.iAttribVertex, 3, gl.FLOAT, false, 0, 0);
         gl.enableVertexAttribArray(shProgram.iAttribVertex);
 
-        // gl.drawArrays(gl.LINE_STRIP, 0, this.count);
-        for (let u = 0; u <= uCount; u++) {
-            gl.drawArrays(gl.LINE_STRIP, u * vCount, vCount);
-        }
-        // +1 to draw last line_strip
-        for (let v = 0; v <= vCount + 1; v++) {
-            gl.drawArrays(gl.LINE_STRIP,
-                uCount * (v + vCount),
-                uCount);
-        }
-    }
+        gl.bindBuffer(gl.ARRAY_BUFFER, this.iNormalBuffer);
+        gl.vertexAttribPointer(shProgram.iAttribNormal, 3, gl.FLOAT, true, 0, 0);
+        gl.enableVertexAttribArray(shProgram.iAttribNormal);
+
+        // Bind the index buffer
+        gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, this.iIndexBuffer);
+
+        // Draw the model using TRIANGLE_STRIP
+        // gl.drawElements(gl.LINE_STRIP, this.count, gl.UNSIGNED_SHORT, 0);
+        // gl.drawElements(gl.TRIANGLES, this.count, gl.UNSIGNED_SHORT, 0);
+        gl.drawElements(gl.TRIANGLE_STRIP, this.count, gl.UNSIGNED_SHORT, 0);
+        // gl.uniform4fv(shProgram.iColor, [0, 1, 0, 1]);
+        // gl.drawElements(gl.LINE_STRIP, this.count, gl.UNSIGNED_SHORT, 0);
+    };
 }
+
+function draw2() {
+    draw()
+    window.requestAnimationFrame(draw2)
+}
+
 
 
 // Constructor
@@ -52,10 +105,16 @@ function ShaderProgram(name, program) {
 
     // Location of the attribute variable in the shader program.
     this.iAttribVertex = -1;
+
+    this.iAttribNormal = -1;
     // Location of the uniform specifying a color for the primitive.
     this.iColor = -1;
+    this.iLightPos = -1;
     // Location of the uniform matrix representing the combined transformation.
     this.iModelViewProjectionMatrix = -1;
+    this.iModelViewMatrix = -1;
+    this.iProjectionMatrix = -1;
+    this.iNormalMatrix = -1;
 
     this.Use = function () {
         gl.useProgram(this.prog);
@@ -86,11 +145,25 @@ function draw() {
     /* Multiply the projection matrix times the modelview matrix to give the
        combined transformation matrix, and send that to the shader program. */
     let modelViewProjection = m4.multiply(projection, matAccum1);
+    let modelviewInv = new Float32Array(16);
+    modelviewInv = m4.inverse(modelView)
+    const normalMatrix = m4.transpose(modelviewInv)
 
     gl.uniformMatrix4fv(shProgram.iModelViewProjectionMatrix, false, modelViewProjection);
+    gl.uniformMatrix4fv(shProgram.iModelViewMatrix, false, matAccum1);
+    gl.uniformMatrix4fv(shProgram.iProjectionMatrix, false, projection);
+    gl.uniformMatrix4fv(shProgram.iNormalMatrix, false, normalMatrix);
 
     /* Draw the six faces of a cube, with different colors. */
     gl.uniform4fv(shProgram.iColor, [1, 1, 0, 1]);
+
+    const t = Date.now() * 0.002
+    gl.uniform3fv(shProgram.iLightPos, m4.transformPoint(modelView, [3 * sin(t), 3 * cos(t), 0]).slice(0, 3));
+
+    const uStepValue = document.getElementById('uStep').value
+    const vStepValue = document.getElementById('vStep').value
+    // console.log(uStepValue, vStepValue)
+    surface.BufferData(...CreateSurfaceData2(parseFloat(uStepValue), parseFloat(vStepValue)));
 
     surface.Draw();
 }
@@ -115,11 +188,16 @@ function initGL() {
     shProgram.Use();
 
     shProgram.iAttribVertex = gl.getAttribLocation(prog, "vertex");
+    shProgram.iAttribNormal = gl.getAttribLocation(prog, "normal");
     shProgram.iModelViewProjectionMatrix = gl.getUniformLocation(prog, "ModelViewProjectionMatrix");
+    shProgram.iModelViewMatrix = gl.getUniformLocation(prog, "ModelViewMatrix");
+    shProgram.iProjectionMatrix = gl.getUniformLocation(prog, "ProjectionMatrix");
+    shProgram.iNormalMatrix = gl.getUniformLocation(prog, "NormalMatrix");
     shProgram.iColor = gl.getUniformLocation(prog, "color");
+    shProgram.iLightPos = gl.getUniformLocation(prog, "lightPos");
 
     surface = new Model('Surface');
-    surface.BufferData(CreateSurfaceData2());
+    surface.BufferData(...CreateSurfaceData2());
 
     gl.enable(gl.DEPTH_TEST);
 }
@@ -185,5 +263,6 @@ function init() {
 
     spaceball = new TrackballRotator(canvas, draw, 0);
 
-    draw();
+    // draw();
+    draw2();
 }

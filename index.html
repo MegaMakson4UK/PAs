@@ -1,32 +1,44 @@
 <!DOCTYPE html>
-<html><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+<html>
+
+<head>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
 
 
-<title>PA#1</title>
-<style>
-    body {
-        background-color: #EEEEEE;
-    }
-</style>
+    <title>PA#2</title>
+    <style>
+        body {
+            background-color: #EEEEEE;
+        }
+    </style>
 
-<script src="./Utils/trackball-rotator.js"></script>
-<script src="./Utils/m4.js"></script>
-<script src="./shader.gpu"></script>
-<script src="./script.js"></script>
-<script src="./main.js"></script>
+    <script src="./Utils/trackball-rotator.js"></script>
+    <script src="./Utils/m4.js"></script>
+    <script src="./shader.gpu"></script>
+    <script src="./script.js"></script>
+    <script src="./main.js"></script>
 
 </head>
+
 <body onload="init()">
 
-<h2>A Cube with "Trackball" Mouse Rotation</h2>
+    <h2>A Cube with "Trackball" Mouse Rotation</h2>
 
-<p id="message">Drag your mouse on the cube to rotate it.<br>
-(On a touch screen, you can use your finger.)</p>
+    <p id="message">Drag your mouse on the cube to rotate it.<br>
+        (On a touch screen, you can use your finger.)</p>
+    <div style="display: flex;">
+        <div id="canvas-holder">
+            <canvas width="600" height="600" id="webglcanvas" style="background-color:red"></canvas>
+        </div>
+        <div>
+            <p>u granulity</p>
+            <input type="range" id="uStep" value="0.02" step="0.01" min="0.01" max="0.05" onchange="draw()">
+            <p>v granulity</p>
+            <input type="range" id="vStep" value="0.2" step="0.05" min="0.05" max="0.5" onchange="draw()">
+        </div>
+    </div>
 
 
-<div id="canvas-holder">
-   <canvas width="600" height="600" id="webglcanvas" style="background-color:red"></canvas>
-</div>
+</body>
 
-
-</body></html>
+</html>
