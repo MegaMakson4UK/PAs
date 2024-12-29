@@ -4,30 +4,48 @@ let gl;                         // The webgl context.
 let surface;                    // A surface model
 let shProgram;                  // A shader program
 let spaceball;                  // A SimpleRotator object that lets the user rotate the view by mouse.
+let sphere;
+let pS = [0.7, 0.3]
+
+let diffTex = null
+let normTex = null
+let specTex = null
 
 function deg2rad(angle) {
     return angle * Math.PI / 180;
 }
 
 
-
+// Constructor
 function Model(name) {
     this.name = name;
 
     // Buffers
     this.iVertexBuffer = gl.createBuffer();
     this.iNormalBuffer = gl.createBuffer();
+    this.iTangentBuffer = gl.createBuffer();
+    this.iBitangentBuffer = gl.createBuffer();
+    this.iTextureBuffer = gl.createBuffer();
     this.iIndexBuffer = gl.createBuffer(); // Index buffer
     this.count = 0;
 
     // Method to set vertex data
-    this.BufferData = function (vertices, indices, normals) {
+    this.BufferData = function (vertices, indices, normals, tangent, bitanangent, textures) {
         // Bind and upload vertex data
         gl.bindBuffer(gl.ARRAY_BUFFER, this.iVertexBuffer);
         gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(vertices), gl.STATIC_DRAW);
 
         gl.bindBuffer(gl.ARRAY_BUFFER, this.iNormalBuffer);
         gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(normals), gl.STATIC_DRAW);
+
+        gl.bindBuffer(gl.ARRAY_BUFFER, this.iTangentBuffer);
+        gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(tangent), gl.STATIC_DRAW);
+
+        gl.bindBuffer(gl.ARRAY_BUFFER, this.iBitangentBuffer);
+        gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(bitanangent), gl.STATIC_DRAW);
+
+        gl.bindBuffer(gl.ARRAY_BUFFER, this.iTextureBuffer);
+        gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(textures), gl.STATIC_DRAW);
 
         // Bind and upload index data
         gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, this.iIndexBuffer);
@@ -44,8 +62,20 @@ function Model(name) {
         gl.enableVertexAttribArray(shProgram.iAttribVertex);
 
         gl.bindBuffer(gl.ARRAY_BUFFER, this.iNormalBuffer);
-        gl.vertexAttribPointer(shProgram.iAttribNormal, 3, gl.FLOAT, true, 0, 0);
+        gl.vertexAttribPointer(shProgram.iAttribNormal, 3, gl.FLOAT, false, 0, 0);
         gl.enableVertexAttribArray(shProgram.iAttribNormal);
+
+        gl.bindBuffer(gl.ARRAY_BUFFER, this.iTangentBuffer);
+        gl.vertexAttribPointer(shProgram.iAttribTangent, 3, gl.FLOAT, false, 0, 0);
+        gl.enableVertexAttribArray(shProgram.iAttribTangent);
+
+        gl.bindBuffer(gl.ARRAY_BUFFER, this.iBitangentBuffer);
+        gl.vertexAttribPointer(shProgram.iAttribBitangent, 3, gl.FLOAT, false, 0, 0);
+        gl.enableVertexAttribArray(shProgram.iAttribBitangent);
+
+        gl.bindBuffer(gl.ARRAY_BUFFER, this.iTextureBuffer);
+        gl.vertexAttribPointer(shProgram.iAttribTexture, 2, gl.FLOAT, false, 0, 0);
+        gl.enableVertexAttribArray(shProgram.iAttribTexture);
 
         // Bind the index buffer
         gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, this.iIndexBuffer);
@@ -76,6 +106,8 @@ function ShaderProgram(name, program) {
     this.iAttribVertex = -1;
 
     this.iAttribNormal = -1;
+
+    this.iAttribTexture = -1;
     // Location of the uniform specifying a color for the primitive.
     this.iColor = -1;
     this.iLightPos = -1;
@@ -134,7 +166,19 @@ function draw() {
     // console.log(uStepValue, vStepValue)
     surface.BufferData(...CreateSurfaceData2(parseFloat(uStepValue), parseFloat(vStepValue)));
 
+    const rotValue = document.getElementById('rotId').value
+    // gl.uniform1f(shProgram.iRotValue, parseFloat(rotValue))
+    gl.uniform2fv(shProgram.iP, [pS[0], (pS[1] + 5) / 10])
+    // console.log(rotValue)
+    assignTextures(gl, shProgram, diffTex, normTex, specTex)
+    // prioritizing tangent
+    gl.uniform1i(shProgram.iPN, false);
     surface.Draw();
+
+    gl.uniform4fv(shProgram.iColor, [0, 0, 1, 1]);
+    const v = twiceObliqueTrochoidCylindroid(...pS)
+    gl.uniformMatrix4fv(shProgram.iModelViewMatrix, false, m4.multiply(matAccum1, m4.translation(v.x, v.y, v.z)));
+    // sphere.Draw();
 }
 
 function CreateSurfaceData() {
@@ -158,15 +202,26 @@ function initGL() {
 
     shProgram.iAttribVertex = gl.getAttribLocation(prog, "vertex");
     shProgram.iAttribNormal = gl.getAttribLocation(prog, "normal");
+    shProgram.iAttribTangent = gl.getAttribLocation(prog, "tangent");
+    shProgram.iAttribBitangent = gl.getAttribLocation(prog, "bitangent");
+    shProgram.iAttribTexture = gl.getAttribLocation(prog, "texture");
     shProgram.iModelViewProjectionMatrix = gl.getUniformLocation(prog, "ModelViewProjectionMatrix");
     shProgram.iModelViewMatrix = gl.getUniformLocation(prog, "ModelViewMatrix");
     shProgram.iProjectionMatrix = gl.getUniformLocation(prog, "ProjectionMatrix");
     shProgram.iNormalMatrix = gl.getUniformLocation(prog, "NormalMatrix");
     shProgram.iColor = gl.getUniformLocation(prog, "color");
     shProgram.iLightPos = gl.getUniformLocation(prog, "lightPos");
+    shProgram.iP = gl.getUniformLocation(prog, "pS");
+    shProgram.iRotValue = gl.getUniformLocation(prog, "rotValue");
+    shProgram.iDiffTex = gl.getUniformLocation(prog, "diffTex");
+    shProgram.iNormTex = gl.getUniformLocation(prog, "normTex");
+    shProgram.iSpecTex = gl.getUniformLocation(prog, "specTex");
+    shProgram.iPN = gl.getUniformLocation(prog, "prioritizeNormal");
 
     surface = new Model('Surface');
     surface.BufferData(...CreateSurfaceData2());
+    sphere = new Model('Sphere');
+    sphere.BufferData(...CreateSphereData());
 
     gl.enable(gl.DEPTH_TEST);
 }
@@ -232,6 +287,69 @@ function init() {
 
     spaceball = new TrackballRotator(canvas, draw, 0);
 
+    diffTex = LoadTexture(img1)
+    normTex = LoadTexture(img2)
+    specTex = LoadTexture(img3)
     // draw();
     draw2();
+}
+
+// Assuming the textures are already loaded and created
+function assignTextures(gl, shProgram, diffTex, normTex, specTex) {
+    // Bind and assign the diffuse texture (diffTex) to texture unit 0
+    gl.activeTexture(gl.TEXTURE0); // Activate texture unit 0
+    gl.bindTexture(gl.TEXTURE_2D, diffTex); // Bind the diffuse texture
+    gl.uniform1i(shProgram.iDiffTex, 0); // Set the sampler to use texture unit 0
+
+    // Bind and assign the normal texture (normTex) to texture unit 1
+    gl.activeTexture(gl.TEXTURE1); // Activate texture unit 1
+    gl.bindTexture(gl.TEXTURE_2D, normTex); // Bind the normal texture
+    gl.uniform1i(shProgram.iNormTex, 1); // Set the sampler to use texture unit 1
+
+    // Bind and assign the specular texture (specTex) to texture unit 2
+    gl.activeTexture(gl.TEXTURE2); // Activate texture unit 2
+    gl.bindTexture(gl.TEXTURE_2D, specTex); // Bind the specular texture
+    gl.uniform1i(shProgram.iSpecTex, 2); // Set the sampler to use texture unit 2
+}
+
+
+function LoadTexture(src) {
+    let texture = gl.createTexture();
+    gl.bindTexture(gl.TEXTURE_2D, texture);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+
+    const image = new Image();
+    image.crossOrigin = 'anonymus';
+    image.src = src
+    image.onload = () => {
+        gl.bindTexture(gl.TEXTURE_2D, texture);
+        gl.texImage2D(
+            gl.TEXTURE_2D,
+            0,
+            gl.RGBA,
+            gl.RGBA,
+            gl.UNSIGNED_BYTE,
+            image
+        );
+        console.log("imageLoaded")
+        draw()
+    }
+    return texture;
+}
+
+
+window.onkeydown = (e) => {
+    if (e.keyCode == 87) { //w V
+        pS[1] = min(pS[1] + 0.2, 5);
+    }
+    else if (e.keyCode == 65) { //a U
+        pS[0] = max(pS[0] - 0.02, 0);
+    }
+    else if (e.keyCode == 83) { //s V
+        pS[1] = max(pS[1] - 0.2, -5);
+    }
+    else if (e.keyCode == 68) { //d U
+        pS[0] = min(pS[0] + 0.02, 1);
+    }
 }
