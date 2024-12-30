@@ -124,7 +124,7 @@ void main() {
     vec3 T = normalize(vTangent);
     vec3 B = normalize(vBitangent);
     vec3 N = texture2D(normTex,vTexture).xyz;
-    //vec3 vN = normalize(vNormal);
+    vec3 vN = normalize(vNormal);
     N = N * 2.0 - 1.0;
     mat3 TBN = mat3(T, B, N);
     vec3 worldNormal = normalize(TBN * N);

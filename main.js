@@ -167,7 +167,7 @@ function draw() {
     surface.BufferData(...CreateSurfaceData2(parseFloat(uStepValue), parseFloat(vStepValue)));
 
     const rotValue = document.getElementById('rotId').value
-    // gl.uniform1f(shProgram.iRotValue, parseFloat(rotValue))
+    gl.uniform1f(shProgram.iRotValue, parseFloat(rotValue))
     gl.uniform2fv(shProgram.iP, [pS[0], (pS[1] + 5) / 10])
     // console.log(rotValue)
     assignTextures(gl, shProgram, diffTex, normTex, specTex)
@@ -178,7 +178,7 @@ function draw() {
     gl.uniform4fv(shProgram.iColor, [0, 0, 1, 1]);
     const v = twiceObliqueTrochoidCylindroid(...pS)
     gl.uniformMatrix4fv(shProgram.iModelViewMatrix, false, m4.multiply(matAccum1, m4.translation(v.x, v.y, v.z)));
-    // sphere.Draw();
+    sphere.Draw();
 }
 
 function CreateSurfaceData() {
